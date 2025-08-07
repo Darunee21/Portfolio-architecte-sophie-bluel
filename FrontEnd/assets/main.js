@@ -1,92 +1,107 @@
 import { generateProjects, generateFilters, generateFiltersEvent } from "./genererator.js";
 
-let projects = []
+let projects = [];
 
-fetch("http://localhost:5678/api/works")
-  .then(function (response) {
-    return response.json();
-  })
-  .then(function (data) {
+/**
+ * Initialise l'application en récupérant les projets et les catégories depuis l'API.
+ * Initialise l'interface admin si le token est présent.
+ */
+async function initApp() {
+  await fetchProjects();
+  await fetchCategories();
+  initAdminInterface();
+}
+
+/**
+ * Récupère les projets depuis l'API et les injecte dans le DOM.
+ */
+async function fetchProjects() {
+  try {
+    const response = await fetch("http://localhost:5678/api/works");
+    const data = await response.json();
     generateProjects(data);
-    projects = data
-  })
-  .catch(function (error) {
+    projects = data;
+  } catch (error) {
     console.error("Erreur lors de la récupération des projets:", error);
-  });
+  }
+}
 
-
-
-fetch("http://localhost:5678/api/categories")
-  .then(function (response) {
-    return response.json();
-  })
-  .then(function (data) {
+/**
+ * Récupère les catégories depuis l'API et initialise les filtres.
+ */
+async function fetchCategories() {
+  try {
+    const response = await fetch("http://localhost:5678/api/categories");
+    const data = await response.json();
     generateFilters(data);
-    generateFiltersEvent(projects)
-  })
-  .catch(function (error) {
+    generateFiltersEvent(projects);
+  } catch (error) {
     console.error("Erreur lors de la récupération des filtres:", error);
-  });
+  }
+}
 
-const token = localStorage.getItem("token");
+/**
+ * Initialise les éléments de l'interface admin si l'utilisateur est connecté.
+ */
+function initAdminInterface() {
+  const token = localStorage.getItem("token");
+  if (!token) return;
 
-if (token) {
-  // Affiche le bandeau noir en haut
+  displayEditionBanner();
+  transformLoginToLogout();
+  hideFilters();
+  addEditButton();
+}
+
+/** Affiche la bannière mode édition en haut de page. */
+function displayEditionBanner() {
   const banner = document.createElement("div");
   banner.classList.add("edition-banner");
-
-  const icon = document.createElement("i");
-  icon.classList.add("fa-regular", "fa-pen-to-square");
-
-  const text = document.createElement("span");
-  text.textContent = "Mode édition";
-
-  banner.appendChild(icon);
-  banner.appendChild(text);
-
+  banner.innerHTML = `<i class="fa-regular fa-pen-to-square"></i><span>Mode édition</span>`;
   document.body.insertBefore(banner, document.body.firstChild);
+}
 
-  // remplace "login" par "logout"
+/** Remplace le lien login par logout et gère sa logique. */
+function transformLoginToLogout() {
   const loginItem = document.querySelector("nav li:nth-child(3)");
   loginItem.textContent = "logout";
   loginItem.style.cursor = "pointer";
   loginItem.addEventListener("click", () => {
     localStorage.removeItem("token");
-    window.location.reload(); // Recharge la page
+    window.location.reload();
   });
-
-  // Masque les filtres
-  const filters = document.querySelector(".filters");
-  if (filters) {
-    filters.style.display = "none";
-  }
-  //  Ajoute le bouton "modifier" à côté du titre "Mes projets"
-  const sectionTitle = document.querySelector("#portfolio h2");
-
-  if (sectionTitle) {
-    const editWrapper = document.createElement("span");
-    editWrapper.classList.add("edit-button");
-
-    const editIcon = document.createElement("i");
-    editIcon.classList.add("fa-regular", "fa-pen-to-square");
-
-    const editText = document.createElement("span");
-    editText.textContent = "modifier";
-
-    editWrapper.appendChild(editIcon);
-    editWrapper.appendChild(editText);
-
-    sectionTitle.appendChild(editWrapper);
-  }
-
-  document.querySelector(".edit-button").addEventListener("click", openModal);
-
 }
 
+/** Masque les filtres de la galerie. */
+function hideFilters() {
+  const filters = document.querySelector(".filters");
+  if (filters) filters.style.display = "none";
+}
 
+/** Ajoute le bouton "modifier" et gère l'ouverture de la modale. */
+function addEditButton() {
+  const sectionTitle = document.querySelector("#portfolio h2");
+  if (!sectionTitle) return;
+
+  const editWrapper = document.createElement("span");
+  editWrapper.classList.add("edit-button");
+  editWrapper.innerHTML = `<i class="fa-regular fa-pen-to-square"></i><span>modifier</span>`;
+  sectionTitle.appendChild(editWrapper);
+
+  editWrapper.addEventListener("click", openModal);
+}
+
+/** Ferme la modale ouverte. */
+function closeModal() {
+  const modalOverlay = document.querySelector(".modal-overlay");
+  if (modalOverlay) modalOverlay.remove();
+}
+
+/**
+ * Crée et affiche la modale (galerie + formulaire).
+ */
 function openModal() {
-  // empêche les duplications
-  if (document.querySelector(".modal-overlay")) return;
+  if (document.querySelector(".modal-overlay")) return; // évite les doublons
 
   const modalHTML = `
   <div class="modal-overlay">
@@ -98,89 +113,69 @@ function openModal() {
         <div class="modal-gallery"></div>
         <button class="modal-add-button">Ajouter une photo</button>
       </div>
-
       <div class="modal-form-view hidden">
         <h3>Ajout photo</h3>
         <form class="modal-form">
           <input type="file" name="image" />
           <input type="text" name="title" placeholder="Titre" />
-          <select name="category">
-            <option value="1">Objets</option>
-            <option value="2">Appartements</option>
-            <option value="3">Hôtels & restaurants</option>
-          </select>
+          <select name="category"></select>
           <button type="submit">Valider</button>
         </form>
       </div>
     </div>
-  </div>
-`;
-  document.body.insertAdjacentHTML("beforeend", modalHTML);
+  </div>`;
 
-  const modalGalleryContainer = document.querySelector(".modal-gallery");
-  modalGalleryContainer.innerHTML = ""; // on vide avant d'ajouter
+  document.body.insertAdjacentHTML("beforeend", modalHTML);
+  renderModalGallery();
+  setupModalEvents();
+  fetchAndRenderCategories();
+  setupImagePreview();
+  handleFormSubmission();
+}
+
+/** Injecte les projets dans la galerie de la modale avec icône suppression. */
+function renderModalGallery() {
+  const container = document.querySelector(".modal-gallery");
+  container.innerHTML = "";
 
   projects.forEach((project) => {
     const figure = document.createElement("figure");
-    figure.classList.add("modal-project");
+    figure.className = "modal-project";
+    figure.innerHTML = `<img src="${project.imageUrl}" alt="${project.title}"><i class="fa-solid fa-trash-can" data-id="${project.id}"></i>`;
 
-    const img = document.createElement("img");
-    img.src = project.imageUrl;
-    img.alt = project.title;
+    figure.querySelector(".fa-trash-can").addEventListener("click", () => handleDelete(project.id, figure));
 
-    const trash = document.createElement("i");
-    trash.classList.add("fa-solid", "fa-trash-can");
-    trash.dataset.id = project.id;
+    container.appendChild(figure);
+  });
+}
 
-    trash.addEventListener("click", async (e) => {
-      e.stopPropagation(); // évite de fermer la modale si on clique sur l’icône
-
-
-      const token = localStorage.getItem("token");
-      try {
-        const response = await fetch(`http://localhost:5678/api/works/${project.id}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          // Supprimer l'élément de la modale
-          figure.remove();
-
-          // Supprimer aussi dans la galerie principale
-          const galleryFigures = document.querySelectorAll(".gallery figure");
-          galleryFigures.forEach((fig) => {
-            const img = fig.querySelector("img");
-            if (img && img.src === project.imageUrl) {
-              fig.remove();
-            }
-          });
-
-          // Mettre à jour le tableau `projects`
-          const index = projects.findIndex((p) => p.id === project.id);
-          if (index !== -1) {
-            projects.splice(index, 1);
-          }
-
-        } else {
-          alert("Erreur lors de la suppression.");
-        }
-      } catch (err) {
-        console.error("Erreur:", err);
-        alert("Une erreur est survenue.");
-      }
+/** Gère la suppression d'un projet via l'API et le DOM. */
+async function handleDelete(projectId, figureElement) {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`http://localhost:5678/api/works/${projectId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
     });
 
-    figure.appendChild(img);
-    figure.appendChild(trash);
-    modalGalleryContainer.appendChild(figure);
-  });
+    if (response.ok) {
+      figureElement.remove();
+      document.querySelectorAll(".gallery figure").forEach((fig) => {
+        const img = fig.querySelector("img");
+        if (img?.src.includes(projectId)) fig.remove();
+      });
+      projects = projects.filter((p) => p.id !== projectId);
+    } else alert("Erreur lors de la suppression.");
+  } catch (err) {
+    console.error("Erreur:", err);
+    alert("Une erreur est survenue.");
+  }
+}
 
-  // Ajoute les écouteurs
+/** Ajoute les événements pour la fermeture de la modale, navigation et formulaire. */
+function setupModalEvents() {
   document.querySelector(".modal-close").addEventListener("click", closeModal);
-  document.querySelector(".modal-overlay").addEventListener("click", function (e) {
+  document.querySelector(".modal-overlay").addEventListener("click", (e) => {
     if (e.target.classList.contains("modal-overlay")) closeModal();
   });
 
@@ -195,8 +190,25 @@ function openModal() {
     document.querySelector(".modal-gallery-view").classList.remove("hidden");
     document.querySelector(".modal-back").classList.add("hidden");
   });
+}
 
-  const imageInput = document.querySelector('input[type="file"]');
+/**
+ * Récupère les catégories de l'API et les injecte dans le select.
+ */
+async function fetchAndRenderCategories() {
+  try {
+    const response = await fetch("http://localhost:5678/api/categories");
+    const categories = await response.json();
+    const select = document.querySelector("select[name='category']");
+    select.innerHTML = categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join("");
+  } catch (err) {
+    console.error("Erreur catégories:", err);
+  }
+}
+
+/** Affiche un aperçu de l'image sélectionnée. */
+function setupImagePreview() {
+  const imageInput = document.querySelector("input[type='file']");
   const previewZone = document.createElement("div");
   previewZone.className = "image-preview";
   imageInput.parentNode.insertBefore(previewZone, imageInput.nextSibling);
@@ -211,13 +223,16 @@ function openModal() {
       reader.readAsDataURL(file);
     }
   });
+}
 
+/** Gère l'envoi du formulaire et mise à jour du DOM si succès. */
+function handleFormSubmission() {
   document.querySelector(".modal-form").addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const image = imageInput.files[0];
-    const title = document.querySelector('input[name="title"]').value.trim();
-    const category = document.querySelector('select[name="category"]').value;
+    const image = document.querySelector("input[type='file']").files[0];
+    const title = document.querySelector("input[name='title']").value.trim();
+    const category = document.querySelector("select[name='category']").value;
     const token = localStorage.getItem("token");
 
     if (!image || !title || !category) {
@@ -241,23 +256,9 @@ function openModal() {
 
       if (response.ok) {
         const newProject = await response.json();
-
-        // Ajouter dans la galerie principale
-        const gallery = document.querySelector(".gallery");
-        const figure = document.createElement("figure");
-        const img = document.createElement("img");
-        img.src = newProject.imageUrl;
-        img.alt = newProject.title;
-        const figcaption = document.createElement("figcaption");
-        figcaption.innerText = newProject.title;
-        figure.appendChild(img);
-        figure.appendChild(figcaption);
-        gallery.appendChild(figure);
-
-        // Ajouter dans la modale aussi
         projects.push(newProject);
-        closeModal(); // ou reset du form + retour à la galerie
-
+        generateProjects(projects); // met à jour la galerie
+        closeModal();
       } else {
         alert("Erreur lors de l'envoi du projet.");
       }
@@ -268,7 +269,5 @@ function openModal() {
   });
 }
 
-function closeModal() {
-  const modalOverlay = document.querySelector(".modal-overlay");
-  if (modalOverlay) modalOverlay.remove();
-}
+// Initialise l'app au chargement
+initApp();

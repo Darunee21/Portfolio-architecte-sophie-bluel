@@ -1,58 +1,63 @@
+/**
+ * Génère dynamiquement la galerie des projets sur la page d'accueil.
+ * @param {Array} projects - Tableau des projets à afficher.
+ */
 export function generateProjects(projects) {
-    const gallery = document.querySelector(".gallery");
+  const gallery = document.querySelector(".gallery");
 
-    for (let i = 0; i < projects.length; i++) {
-        const project = projects[i];
+  projects.forEach((project) => {
+    const figure = document.createElement("figure");
 
-        const figure = document.createElement("figure");
+    const image = document.createElement("img");
+    image.src = project.imageUrl;
+    image.alt = project.title;
 
-        const image = document.createElement("img");
-        image.src = project.imageUrl;
-        image.alt = project.title;
+    const caption = document.createElement("figcaption");
+    caption.textContent = project.title;
 
-        const caption = document.createElement("figcaption");
-        caption.textContent = project.title;
-
-        figure.appendChild(image);
-        figure.appendChild(caption);
-        gallery.appendChild(figure);
-    }
+    figure.appendChild(image);
+    figure.appendChild(caption);
+    gallery.appendChild(figure);
+  });
 }
 
+/**
+ * Génère dynamiquement les boutons de filtre à partir des catégories récupérées via l’API.
+ * @param {Array} categories - Tableau des catégories disponibles.
+ */
 export function generateFilters(categories) {
-    const filters = document.querySelector(".filters");
+  const filters = document.querySelector(".filters");
 
-    for (let i = 0; i < categories.length; i++) {
-        const category = categories[i];
-        const newButton = document.createElement("button");
-
-        newButton.textContent = category.name;
-        newButton.dataset.cat = category.id;
-        filters.appendChild(newButton);
-    }
-
+  categories.forEach((category) => {
+    const newButton = document.createElement("button");
+    newButton.textContent = category.name;
+    newButton.dataset.cat = category.id;
+    filters.appendChild(newButton);
+  });
 }
 
+/**
+ * Associe un événement de filtrage à chaque bouton de filtre,
+ * puis filtre les projets affichés en fonction de la catégorie sélectionnée.
+ * @param {Array} projects - Tableau complet des projets pour appliquer les filtres.
+ */
 export function generateFiltersEvent(projects) {
-    const buttons = document.querySelectorAll(".filters button");
-    buttons.forEach((button) => {
-        button.addEventListener("click", function () {
-            const categoryId = button.dataset.cat
-            document.querySelector(".gallery").innerHTML = "";
+  const buttons = document.querySelectorAll(".filters button");
 
-            if (categoryId == "all") {
-                generateProjects(projects)
-            }
-            else {
-                const filteredProjects = []
-                projects.forEach((pjt) => {
-                    if (pjt.category.id == categoryId) {
-                        filteredProjects.push(pjt)
-                    }
-                })
-                generateProjects(filteredProjects)
-            }
-        });
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const categoryId = button.dataset.cat;
+      const gallery = document.querySelector(".gallery");
+      gallery.innerHTML = "";
+
+      if (categoryId === "all") {
+        generateProjects(projects);
+      } else {
+        const filteredProjects = projects.filter(
+          (project) => project.category.id == categoryId
+        );
+        generateProjects(filteredProjects);
+      }
     });
-
+  });
 }
