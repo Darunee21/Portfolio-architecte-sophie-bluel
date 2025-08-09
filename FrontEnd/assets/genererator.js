@@ -3,22 +3,22 @@
  * @param {Array} projects - Tableau des projets à afficher.
  */
 export function generateProjects(projects) {
-  const gallery = document.querySelector(".gallery");
+    const gallery = document.querySelector(".gallery");
 
-  projects.forEach((project) => {
-    const figure = document.createElement("figure");
+    projects.forEach((project) => {
+        const figure = document.createElement("figure");
 
-    const image = document.createElement("img");
-    image.src = project.imageUrl;
-    image.alt = project.title;
+        const image = document.createElement("img");
+        image.src = project.imageUrl;
+        image.alt = project.title;
 
-    const caption = document.createElement("figcaption");
-    caption.textContent = project.title;
+        const caption = document.createElement("figcaption");
+        caption.textContent = project.title;
 
-    figure.appendChild(image);
-    figure.appendChild(caption);
-    gallery.appendChild(figure);
-  });
+        figure.appendChild(image);
+        figure.appendChild(caption);
+        gallery.appendChild(figure);
+    });
 }
 
 /**
@@ -26,38 +26,43 @@ export function generateProjects(projects) {
  * @param {Array} categories - Tableau des catégories disponibles.
  */
 export function generateFilters(categories) {
-  const filters = document.querySelector(".filters");
+    const filters = document.querySelector(".filters");
 
-  categories.forEach((category) => {
-    const newButton = document.createElement("button");
-    newButton.textContent = category.name;
-    newButton.dataset.cat = category.id;
-    filters.appendChild(newButton);
-  });
+    categories.forEach((category) => {
+        const newButton = document.createElement("button");
+        newButton.textContent = category.name;
+        newButton.dataset.cat = category.id;
+        filters.appendChild(newButton);
+    });
 }
 
 /**
- * Associe un événement de filtrage à chaque bouton de filtre,
- * puis filtre les projets affichés en fonction de la catégorie sélectionnée.
- * @param {Array} projects - Tableau complet des projets pour appliquer les filtres.
+ * Active le bon style de filtre et met à jour la galerie selon la catégorie.
+ * Un seul listner sur .filters
+ * aussi pour les boutons ajoutés dynamiquement.
+ *
+ * @param {Array} projects - Tous les projets disponibles (non filtrés).
  */
 export function generateFiltersEvent(projects) {
-  const buttons = document.querySelectorAll(".filters button");
+    const filters = document.querySelector(".filters");
+    if (!filters) return;
 
-  buttons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const categoryId = button.dataset.cat;
-      const gallery = document.querySelector(".gallery");
-      gallery.innerHTML = "";
+    filters.addEventListener("click", (e) => {
+        const btn = e.target.closest("button");
+        if (!btn) return;
 
-      if (categoryId === "all") {
-        generateProjects(projects);
-      } else {
-        const filteredProjects = projects.filter(
-          (project) => project.category.id == categoryId
-        );
-        generateProjects(filteredProjects);
-      }
+        filters.querySelectorAll("button").forEach((b) => b.classList.remove("filter-selected"));
+        btn.classList.add("filter-selected");
+
+        const categoryId = btn.dataset.cat;
+        const gallery = document.querySelector(".gallery");
+        gallery.innerHTML = "";
+
+        if (categoryId === "all") {
+            generateProjects(projects);
+        } else {
+            const filtered = projects.filter((p) => String(p.category.id) === String(categoryId));
+            generateProjects(filtered);
+        }
     });
-  });
 }

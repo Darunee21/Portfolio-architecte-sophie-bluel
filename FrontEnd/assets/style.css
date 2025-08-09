@@ -352,8 +352,10 @@ input[type="submit"] {
 	justify-content: center;
 }
 
-
-
+.filters button.filter-selected {
+	color: white;
+	background-color: #1D6154;
+}
 
 footer nav ul {
 	display: flex;
